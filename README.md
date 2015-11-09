@@ -2,7 +2,7 @@
 
 Overview: vcf2MK is a program for annotated polymorphism and divergence data within coding sequences in a vcf formatted DNA polymorphism file. This program is distributed with a number of scripts for assembling MK tables among other things.  
 
-Downloading and Compilation: The vcf to MK package can be acquired via github at https://github.com/russcd/vcf2MK, using the command: “git clone https://github.com/russcd/vcf2MK.git” . The program can then be compiled via the command: “c++ -o vcf2MK –-std=c++0x vcf2MK.cpp” 
+Downloading and Compilation: The vcf to MK package can be acquired via github at https://github.com/russcd/vcf2MK, using the command: “git clone https://github.com/russcd/vcf2MK.git” . The program can then be compiled via the command: “g++ -o vcf2MK –-std=c++0x vcf2MK.cpp” 
 
 Usage: To use vcf2MK, the user must supply the program with three files. First, the user must supply a vcf file of polymorphism data from within a focal population (using the –v option). The user must also supply an aligned outgroup file, either in vcf of maf formats (using the –o option). This file must have the correct file extension (either .vcf or .maf). All vcf files supplied to vcf2MK must contain only the first eight columns of the vcf file. This can be accomplished using the command “cut –f1-8” as shown below. Both the ingroup data, and outgroup must be aligned to the same reference genome. Finally, the user must supply an annotation file, in gff, gff3 or gtf formats. Again, the annotation file extension must be correct.
 
