@@ -18,6 +18,7 @@ Little quality filtration is built into the program. Instead, the user is expect
 Output: The program output is tab-delimited data for all variable sites within a transcript supplied in the annotation file. The format is chromosome, position, number of nonsynonymous divergences, number of synonymous divergences, number of nonsynonymous polymorphisms, number of synonymous polymorphisms, number of genotyped chromosomes in vcf ingroup, frequency of polymorphic site (if a polymorphic site is present), and a comma separated list of transcripts that share this position. The following are two example output lines. 
  
 2L	70661	0	1	0	1	192	0.932292	FBtr0306536,FBtr0306538,FBtr0306539,FBtr0078100,FBtr0306537,
+
 2L	70669	1	0	0	0	192	NA	FBtr0306536,FBtr0306538,FBtr0306539,FBtr0078100,FBtr0306537,
 
 Columns 3 and 4 may contain any value between 0 and 1. The reason for this is that when more than a single divergent site is present within a codon, there may be multiple mutational trajectories between the two codons. vcf2MK will report the average nonsynonymous and synonymous counts of all possible mutational paths between the two codons. Because, in most cases, phase is not known for polymorphic sites, in instances where there are two or more polymorphisms within a single codon, each site is assumed to arise independently on a codon consisting of the highest frequency bases at the other two sites within the codon sequence. 
