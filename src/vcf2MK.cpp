@@ -67,9 +67,9 @@ void cmd_line::read_cmd_line ( int argc, char *argv[] ) {
         if ( strcmp(argv[i],"-o") == 0 ) {
             outgroup_file = argv[++i] ;
         }
-		if ( strcmp(argv[i],"--vcf") == 0 ) {
-			focal_population_vcf_file = argv[++i] ;
-		}
+	if ( strcmp(argv[i],"--vcf") == 0 || strcmp(argv[i],"-v") == 0 ) {
+		focal_population_vcf_file = argv[++i] ;
+	}
         if ( strcmp(argv[i],"-c") == 0 || strcmp(argv[i],"--cds") == 0) {
             cds_file = argv[++i] ;
         }
