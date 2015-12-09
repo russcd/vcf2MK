@@ -64,7 +64,7 @@ void cmd_line::read_cmd_line ( int argc, char *argv[] ) {
         if ( strcmp(argv[i],"--oq") == 0 ) {
             minimum_outgroup_quality = atof( argv[++i] ) ;
         }
-        if ( strcmp(argv[i],"--og") == 0 ) {
+        if ( strcmp(argv[i],"-o") == 0 ) {
             outgroup_file = argv[++i] ;
         }
 		if ( strcmp(argv[i],"--vcf") == 0 ) {
@@ -72,9 +72,6 @@ void cmd_line::read_cmd_line ( int argc, char *argv[] ) {
 		}
         if ( strcmp(argv[i],"-c") == 0 || strcmp(argv[i],"--cds") == 0) {
             cds_file = argv[++i] ;
-        }
-        if ( strcmp(argv[i],"-o") == 0 ) {
-            output_file = argv[++i] ;
         }
 	}
     if ( focal_population_vcf_file == "null" || outgroup_file == "null" ) {
