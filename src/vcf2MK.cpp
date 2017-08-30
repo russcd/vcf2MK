@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <time.h>
 #include "codon_counts.h"
+#include "fold_counts.h" 
 
 using namespace std;
 
@@ -28,7 +29,10 @@ public:
     float minimum_focal_vcf_quality ;
     float minimum_outgroup_quality ;           /// either score if maf or qual if vcf
 
-    bool accept_lower ; 
+    bool output_invariant ;
+    
+    bool accept_lower ;
+    bool annotate_fold ;
     
     string outgroup_file ;
     string focal_population_vcf_file ;
@@ -46,7 +50,9 @@ void cmd_line::read_cmd_line ( int argc, char *argv[] ) {
     minimum_focal_vcf_quality = 0 ;
     minimum_outgroup_quality = 0 ;
     
-    accept_lower = false ; 
+    accept_lower = false ;
+    annotate_fold = false ;
+    output_invariant = true ;
 
     focal_population_vcf_file = "null" ;
     outgroup_file = "null" ;
@@ -55,6 +61,9 @@ void cmd_line::read_cmd_line ( int argc, char *argv[] ) {
     
 	for (int i=1; i<argc; i++) {
 
+        if ( strcmp(argv[i],"-f") == 0 ) {
+            annotate_fold = true ;
+        }
         if ( strcmp(argv[i],"--al") == 0 ) {
             accept_lower = true ; 
         }
@@ -67,13 +76,19 @@ void cmd_line::read_cmd_line ( int argc, char *argv[] ) {
         if ( strcmp(argv[i],"-o") == 0 ) {
             outgroup_file = argv[++i] ;
         }
-	if ( strcmp(argv[i],"--vcf") == 0 || strcmp(argv[i],"-v") == 0 ) {
-		focal_population_vcf_file = argv[++i] ;
-	}
+        if ( strcmp(argv[i],"--vcf") == 0 || strcmp(argv[i],"-v") == 0 ) {
+            focal_population_vcf_file = argv[++i] ;
+        }
+        if ( strcmp(argv[i],"--vcf") == 0 || strcmp(argv[i],"-v") == 0 ) {
+            focal_population_vcf_file = argv[++i] ;
+        }
         if ( strcmp(argv[i],"-c") == 0 || strcmp(argv[i],"--cds") == 0) {
             cds_file = argv[++i] ;
         }
-	}
+        if ( strcmp(argv[i],"-i") == 0 ) {
+            output_invariant = false ;
+        }
+    }
     if ( focal_population_vcf_file == "null" || outgroup_file == "null" ) {
         cerr << "MUST SPECIFY VCF AND AT LEAST ONE OUTGROUP FILE\n\n\n" ;
         exit(1) ;
@@ -154,12 +169,13 @@ void cds_entry::parse_cds_line ( ifstream &CDS ) {
     CDS >> trash ;
     CDS >> strand ;
     CDS >> offset ;
-    CDS >> cds_id ;
-    
+
+    getline(CDS,cds_id) ;
+
 }
 
 vector<string> identify_parent_transcripts( string &cds_file, string &cds_info ) {
-    
+
     vector<string> info_fields = split( cds_info, ';' ) ;
     vector<string> parent_ids ;
 
@@ -177,7 +193,7 @@ vector<string> identify_parent_transcripts( string &cds_file, string &cds_info )
     }
 
     //// gtf file
-    else if ( cds_file.substr(cds_file.size()-3) == "gtf" ) {	
+    else if ( cds_file.substr(cds_file.size()-3) == "gtf" ) {
         for ( int f = 0 ; f < info_fields.size() ; f ++ ) {
             if ( info_fields.at(f).substr(0,15) == " transcript_id " ) {
                 parent_ids.push_back( info_fields.at(f).substr(16,info_fields.at(f).size()-17) ) ;
@@ -256,24 +272,29 @@ public:
 } ;
 
 void vcf_entry::read_vcf_line ( ifstream &VCF ) {
- 
-    string trash ;                  /// placeholder for information that we don't need
+
+    string vcf_line ;                  /// placeholder for information that we don't need
     
-    VCF >> contig ;
+    getline(VCF, vcf_line) ; 
+    istringstream vcf_stream ( vcf_line ) ; 
+
+    vcf_stream >> contig ;
     /// skip comment lines, and skip empty contigs
     if ( contig.size() == 0 || contig.at(0) == '#' ) {
-        getline(VCF,trash) ;
         return ;
     }
     
-    VCF >> position ;
-    VCF >> trash ;
-    VCF >> ref ;
-    VCF >> alt ;
-    VCF >> qual ;
-    VCF >> trash ;
-    VCF >> info ;
-    
+    string trash ; 
+
+    vcf_stream >> position ;
+    vcf_stream >> trash ;
+    vcf_stream >> ref ;
+    vcf_stream >> alt ;
+    vcf_stream >> trash ;
+    qual = atoi( trash.c_str() ) ; 
+    vcf_stream >> trash ;
+    vcf_stream >> info ;
+
 }
 
 int extract_AN ( vector<string> &info ) {
@@ -339,8 +360,6 @@ poly_div_data parse_vcf_information ( vcf_entry &new_vcf ) {
         return new_site ; 
     }    
     
-    //// otherwise there are either two alternate alleles
-    
     //// extract alternate alleles
     vector<string> alternate_alleles = split( new_vcf.alt, ',' ) ;
     
@@ -386,15 +405,15 @@ void import_vcf_data ( string vcf_file, map< string, vector<cds_entry> > &cds_in
         /// import new vcf line
         vcf_entry new_vcf ;
         new_vcf.read_vcf_line( VCF ) ;
-        
+
         /// skip comment lines
-        if ( contig.at(0) == '#' || contig.size() == 0 ) {
+        if ( new_vcf.contig.size() == 0 || new_vcf.contig.at(0) == 0 ) {
             continue ;
         }
         
         /// If vcf entry is below the minimum quality, skip to the next one
         if ( new_vcf.qual < min_qual ) {
-            continue ;
+            continue ; 
         }
         
         /// if vcf has skipped to the next chromosome, reset the cds index to zero
@@ -477,7 +496,7 @@ void import_outgroup_vcf ( string vcf_file, map< string, vector<cds_entry> > &cd
     string contig = "null" ;
     
     ifstream VCF ( vcf_file.c_str() ) ;
-    string vcf_line ;
+
     while( !VCF.eof() ) {
         
         /// read vcf line
@@ -485,7 +504,7 @@ void import_outgroup_vcf ( string vcf_file, map< string, vector<cds_entry> > &cd
         new_vcf.read_vcf_line( VCF ) ;
         
         /// skip comment line
-        if ( contig.at(0) == '#' ) {
+        if ( new_vcf.contig.size() == 0 || new_vcf.contig.at(0) == '#' ) {
             continue ;
         }
         
@@ -730,7 +749,7 @@ bool check_file_type( string &file ) {
 }
 
 //// compliment sequence
-string compliment_sequence ( string plus_strand_sequence ) {
+string compliment_sequence ( const string &plus_strand_sequence ) {
     string minus_strand_sequence ;
     for ( int l = 0 ; l < plus_strand_sequence.size() ; l ++ ) {
         if ( plus_strand_sequence.at(l) == 'A' ) {
@@ -753,14 +772,14 @@ string compliment_sequence ( string plus_strand_sequence ) {
 }
 
 //// will scroll across each cds entry and output stats at relevant sites
-void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_transition_counts &transition_counts ) {
-    
+void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_transition_counts &transition_counts, bool output_invariant ) {
+
     /// iterate across all chromosomes
     for ( auto chromosome = cds_information.begin(); chromosome != cds_information.end(); chromosome++ ) {
         
         /// iterate across all cds's
         for ( int c = 0 ; c < chromosome->second.size() ; c ++ ) {
-            
+
             //// we must have at least three bases to have any meaningful sequence data
             if ( chromosome->second.at(c).sequence_data.size() < 3 ) {
                 continue ;
@@ -806,34 +825,54 @@ void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_t
                     for ( int s = 0 ; s < 3 ; s ++ ) {
                         
                         /// compute polymorphic counts
+                        int ps = 0 ;
+                        int pn = 0 ;
                         string alternate_codon = base_codon ;
-                        alternate_codon.replace(s,1,chromosome->second.at(c).sequence_data.at( cds_position_iterator + s ).alternate_allele) ;
+                        alternate_codon.replace(s,1,chromosome->second.at(c).sequence_data.at( cds_position_iterator + s ).alternate_allele ) ;
                         string transition = base_codon + alternate_codon ;
-                        double ps = transition_counts.synonymous[transition][s] ;
-                        double pn = transition_counts.non_synonymous[transition][s] ;
-                        
+                        ps = transition_counts.synonymous[transition][s] ;
+                        pn = transition_counts.non_synonymous[transition][s] ;
+
                         /// divergent counts
                         transition = base_codon + outgroup_codon ;
-                        double dn = transition_counts.non_synonymous[transition][s] ;
-                        double ds = transition_counts.synonymous[transition][s] ;
+                        int dn = 0 ;
+                        int ds = 0 ;
+                        if ( outgroup_codon[s] != base_codon[s] && ( alternate_codon.size() < 3 || alternate_codon[s] != outgroup_codon[s] ) ) {
+                            dn = transition_counts.non_synonymous[transition][s] ;
+                            ds = transition_counts.synonymous[transition][s] ;
+                        }
+                        
+                        /// if alternate codon equals outgroup switch counts
+                        if ( alternate_codon[s] == outgroup_codon[s] ) {
+                            alternate_codon[s] = base_codon[s] ;
+                            base_codon[s] = outgroup_codon[s] ;
+                            chromosome->second.at(c).sequence_data.at( cds_position_iterator + s ).alt_counts = chromosome->second.at(c).sequence_data.at( cds_position_iterator + s ).number_chromosomes - chromosome->second.at(c).sequence_data.at( cds_position_iterator + s ).alt_counts ;
+                        }
                         
                         /// for all variable sites, print the relevant polymorphism/divergent information
-                        if ( ds > 0 || dn > 0 || ps > 0 || pn > 0 ) {
+                        if ( output_invariant == true || ( ds > 0 || dn > 0 || ps > 0 || pn > 0 ) ) {
                             cout << chromosome->first << "\t" << p + s << "\t" ;
+                            cout << outgroup_codon[s] << "\t" << base_codon[s] << "\t" ;
+                            if ( pn > 0 || ps > 0 ) {
+                                cout << alternate_codon[s] << "\t" ;
+                            }
+                            else {
+                                cout << "NA" << "\t" ;
+                            }
                             cout << dn << "\t" << ds << "\t" << pn << "\t" << ps << "\t" ;
                             cout << chromosome->second.at(c).sequence_data.at( cds_position_iterator + s ).number_chromosomes << "\t" ;
                             if ( pn > 0 || ps > 0 ) {
                                 cout << (float)chromosome->second.at(c).sequence_data.at( cds_position_iterator + s ).alt_counts/(float)chromosome->second.at(c).sequence_data.at( cds_position_iterator + s ).number_chromosomes << "\t" ;
                             }
                             else {
-                                cout << "NA" << "\t" ;
+                                cout << 0 << "\t" ;
                             }
                             
                             //// now print , delimited list of all transcripts
                             for ( int t = 0 ; t < chromosome->second.at(c).parent_transcripts.size() ; t ++ ) {
                                 cout << chromosome->second.at(c).parent_transcripts.at(t) << "," ;
                             }
-                            cout << endl ;
+                            cout << "\t" << fold_counts[base_codon][s] << endl ;
                         }
                     }
                 }
@@ -870,8 +909,7 @@ void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_t
                     /// identify polymorphic sites and record dn and ds information
                     string base_codon ;
                     string outgroup_codon ;
-                    for ( int s = cds_position_iterator ; s > cds_position_iterator - 3 ; s -- ) {
-                        
+                    for ( int s = cds_position_iterator ; s > cds_position_iterator - 3 ; s -- ) {                        
                         base_codon += chromosome->second.at(c).sequence_data.at(s).reference_allele ;
                         outgroup_codon += chromosome->second.at(c).sequence_data.at(s).outgroup_allele ;
                     }
@@ -879,20 +917,41 @@ void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_t
                     for ( int s = 0 ; s < 3 ; s ++ ) {
                         
                         /// compute polymorphic counts
+                        int ps = 0 ;
+                        int pn = 0 ;
                         string alternate_codon = base_codon ;
                         alternate_codon.replace(s,1,chromosome->second.at(c).sequence_data.at( cds_position_iterator - s ).alternate_allele) ;
                         string transition = compliment_sequence(base_codon + alternate_codon) ;
-                        double ps = transition_counts.synonymous[transition][s] ;
-                        double pn = transition_counts.non_synonymous[transition][s] ;
+                        ps = transition_counts.synonymous[transition][s] ;
+                        pn = transition_counts.non_synonymous[transition][s] ;
                         
-                        //// now divergent sites
+                        /// if alternate codon equals outgroup switch counts
+                        if ( alternate_codon[s] == outgroup_codon[s] ) {
+                            alternate_codon[s] = base_codon[s] ;
+                            base_codon[s] = outgroup_codon[s] ;
+                            chromosome->second.at(c).sequence_data.at( cds_position_iterator - s ).alt_counts = chromosome->second.at(c).sequence_data.at( cds_position_iterator - s ).number_chromosomes - chromosome->second.at(c).sequence_data.at( cds_position_iterator - s ).alt_counts ;
+                        }
+                        
+                        //// now compute divergent sites
                         transition = compliment_sequence(base_codon + outgroup_codon) ;
-                        double dn = transition_counts.non_synonymous[transition][s] ;
-                        double ds = transition_counts.synonymous[transition][s] ;
+                        int dn = 0 ;
+                        int ds = 0 ;
+                        if ( outgroup_codon[s] != base_codon[s] && ( alternate_codon.size() < 3 || alternate_codon[s] != outgroup_codon[s] ) ) {
+                            dn = transition_counts.non_synonymous[transition][s] ;
+                            ds = transition_counts.synonymous[transition][s] ;
+                        }
                         
                         /// for all variable sites, print the relevant polymorphism/divergent information
-                        if ( ds > 0 || dn > 0 || ps > 0 || pn > 0 ) {
+                        if ( output_invariant == true || ( ds > 0 || dn > 0 || ps > 0 || pn > 0 ) ) {
                             cout << chromosome->first << "\t" << p - s << "\t" ;
+                            cout << compliment_sequence( outgroup_codon.substr(s, 1).c_str() ) << "\t" << compliment_sequence( base_codon.substr(s, 1).c_str() ) << "\t" ;
+                            if ( pn > 0 || ps > 0 ) {
+                                cout << compliment_sequence( alternate_codon.substr(s, 1).c_str() ) << "\t" ;
+                            }
+                            else {
+                                cout << "NA" << "\t" ;
+                            }
+                        
                             cout << dn << "\t" << ds << "\t" << pn << "\t" << ps << "\t" ;
                             cout << chromosome->second.at(c).sequence_data.at( cds_position_iterator - s ).number_chromosomes << "\t" ;
                             if ( pn > 0 || ps > 0 ) {
@@ -906,7 +965,8 @@ void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_t
                             for ( int t = 0 ; t < chromosome->second.at(c).parent_transcripts.size() ; t ++ ) {
                                 cout << chromosome->second.at(c).parent_transcripts.at(t) << "," ;
                             }
-                            cout << endl ;
+                            cout << "\t" << fold_counts[compliment_sequence(base_codon)][s] << endl ;
+
                         }
                     }
                 }
@@ -975,7 +1035,7 @@ int main ( int argc, char **argv ) {
     
     /// compute and output polymorphism and divergence information
     cerr << "computing MK information\n" ;
-    compute_mk_info ( cds_information, transition_counts ) ;
+    compute_mk_info ( cds_information, transition_counts, options.output_invariant ) ;
     
     /// benchmarking
     cerr << "mk runtime:\t" << (double) (clock() - last_time) / 1000000 << endl ;
