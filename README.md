@@ -9,8 +9,11 @@ Usage: To use vcf2MK, the user must supply the program with three files. First, 
 An example usage is this:
 
 mkfifo in.vcf out.vcf
+
 cut –f1-8 ingroup.vcf > in.vcf &
+
 cut –f1-8 outgroup.vcf > out.vcf &
+
 ./vcf2MK –v in.vcf –o out.vcf –c annotation.gff > transcript_data.txt
 
 Little quality filtration is built into the program. Instead, the user is expected to provide vcf2MK with a heavily filtered vcf file for both ingroup and outgroup vcfs.  
