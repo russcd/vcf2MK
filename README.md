@@ -9,22 +9,32 @@ Usage: To use vcf2MK, the user must supply the program with three files. First, 
 An example usage is this:
 
 mkfifo in.vcf out.vcf
-
 cut –f1-8 ingroup.vcf > in.vcf &
-
 cut –f1-8 outgroup.vcf > out.vcf &
-
-./vcf2MK –v in.vcf –o out.vcf –c annotation.gff > transcript_data.txt
+./vcf2MK –v in.vcf –o out.vcf –c annotation.gff -i > transcript_data.txt
 
 Little quality filtration is built into the program. Instead, the user is expected to provide vcf2MK with a heavily filtered vcf file for both ingroup and outgroup vcfs.  
 
-Output: The program output is tab-delimited data for all variable sites within a transcript supplied in the annotation file. The format is chromosome, position, number of nonsynonymous divergences, number of synonymous divergences, number of nonsynonymous polymorphisms, number of synonymous polymorphisms, number of genotyped chromosomes in vcf ingroup, frequency of polymorphic site (if a polymorphic site is present), and a comma separated list of transcripts that share this position. The following are two example output lines. 
+Output: The program output is tab-delimited data for all variable sites within a transcript supplied in the annotation file. The format is 
+
+1. chromosome
+2. position
+3. outgroup allele
+4. ancestral (or  highest frequency) allele
+5. polymorphic allele
+6. number of nonsynonymous divergences
+7. number of synonymous divergences
+8. number of nonsynonymous polymorphisms
+9. number of synonymous polymorphisms
+10. number of genotyped chromosomes in vcf ingroup
+11. frequency of polymorphic site (if a polymorphic site is present)
+12. comma separated list of transcripts that share this position. 
+13. The fold-degeneracy of that position in the codon containing the ingroup ancestral allele.
+
+The following are two example output lines. 
  
-2L	70661	0	1	0	1	192	0.932292	FBtr0306536,FBtr0306538,FBtr0306539,FBtr0078100,FBtr0306537,
-
-2L	70669	1	0	0	0	192	NA	FBtr0306536,FBtr0306538,FBtr0306539,FBtr0078100,FBtr0306537,
-
-Columns 3 and 4 may contain any value between 0 and 1. The reason for this is that when more than a single divergent site is present within a codon, there may be multiple mutational trajectories between the two codons. vcf2MK will report the average nonsynonymous and synonymous counts of all possible mutational paths between the two codons. Because, in most cases, phase is not known for polymorphic sites, in instances where there are two or more polymorphisms within a single codon, each site is assumed to arise independently on a codon consisting of the highest frequency bases at the other two sites within the codon sequence. 
+2L	70293	A	G	T	1	0	1	0	192	0.00520833	FBtr0306539,FBtr0078100,FBtr0306536,FBtr0306537,FBtr0306538,	0
+2L	70316	C	C	A	0	0	0	1	192	0.00520833	FBtr0306539,FBtr0078100,FBtr0306536,FBtr0306537,FBtr0306538,	4
 
 Eample Usage: Example files are provided in the example directory. To test the program, use the command “./vcf2MK –v Dmelanogaster.vcf –o Dsimulans.vcf –c Dmelanogaster.gff > Dmelanogaster.detailed”
 
