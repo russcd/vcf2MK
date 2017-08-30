@@ -52,7 +52,7 @@ void cmd_line::read_cmd_line ( int argc, char *argv[] ) {
     
     accept_lower = false ;
     annotate_fold = false ;
-    output_invariant = true ;
+    output_invariant = false ;
 
     focal_population_vcf_file = "null" ;
     outgroup_file = "null" ;
@@ -86,7 +86,7 @@ void cmd_line::read_cmd_line ( int argc, char *argv[] ) {
             cds_file = argv[++i] ;
         }
         if ( strcmp(argv[i],"-i") == 0 ) {
-            output_invariant = false ;
+            output_invariant = true ;
         }
     }
     if ( focal_population_vcf_file == "null" || outgroup_file == "null" ) {
