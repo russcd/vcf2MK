@@ -89,8 +89,8 @@ void cmd_line::read_cmd_line ( int argc, char *argv[] ) {
             output_invariant = true ;
         }
     }
-    if ( focal_population_vcf_file == "null" || outgroup_file == "null" ) {
-        cerr << "MUST SPECIFY VCF AND AT LEAST ONE OUTGROUP FILE\n\n\n" ;
+    if ( focal_population_vcf_file == "null" ) {
+        cerr << "MUST SPECIFY VCF\n\n\n" ;
         exit(1) ;
     }
     if ( cds_file == "null" ) {
@@ -279,6 +279,7 @@ void vcf_entry::read_vcf_line ( ifstream &VCF ) {
     istringstream vcf_stream ( vcf_line ) ; 
 
     vcf_stream >> contig ;
+    
     /// skip comment lines, and skip empty contigs
     if ( contig.size() == 0 || contig.at(0) == '#' ) {
         return ;
@@ -772,7 +773,7 @@ string compliment_sequence ( const string &plus_strand_sequence ) {
 }
 
 //// will scroll across each cds entry and output stats at relevant sites
-void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_transition_counts &transition_counts, bool output_invariant ) {
+void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_transition_counts &transition_counts, bool output_invariant, bool no_outgroup ) {
 
     /// iterate across all chromosomes
     for ( auto chromosome = cds_information.begin(); chromosome != cds_information.end(); chromosome++ ) {
@@ -807,8 +808,8 @@ void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_t
                         continue ;
                     }
 
-                    /// check to make sure each site has an outgroup 1 allele called as well
-                    if ( chromosome->second.at(c).sequence_data.at(cds_position_iterator).outgroup_allele == "N" || chromosome->second.at(c).sequence_data.at(cds_position_iterator+1).outgroup_allele == "N" || chromosome->second.at(c).sequence_data.at(cds_position_iterator+2).outgroup_allele == "N" ) {
+                    /// check to make sure each site has an outgroup allele called as well
+                    if ( no_outgroup == false && ( chromosome->second.at(c).sequence_data.at(cds_position_iterator).outgroup_allele == "N" || chromosome->second.at(c).sequence_data.at(cds_position_iterator+1).outgroup_allele == "N" || chromosome->second.at(c).sequence_data.at(cds_position_iterator+2).outgroup_allele == "N" ) ) {
                         continue ;
                     }
   
@@ -834,12 +835,14 @@ void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_t
                         pn = transition_counts.non_synonymous[transition][s] ;
 
                         /// divergent counts
-                        transition = base_codon + outgroup_codon ;
                         int dn = 0 ;
                         int ds = 0 ;
-                        if ( outgroup_codon[s] != base_codon[s] && ( alternate_codon.size() < 3 || alternate_codon[s] != outgroup_codon[s] ) ) {
-                            dn = transition_counts.non_synonymous[transition][s] ;
-                            ds = transition_counts.synonymous[transition][s] ;
+                        if ( no_outgroup == false ) {
+                            transition = base_codon + outgroup_codon ;
+                            if ( outgroup_codon[s] != base_codon[s] && ( alternate_codon.size() < 3 || alternate_codon[s] != outgroup_codon[s] ) ) {
+                                dn = transition_counts.non_synonymous[transition][s] ;
+                                ds = transition_counts.synonymous[transition][s] ;
+                            }
                         }
                         
                         /// if alternate codon equals outgroup switch counts
@@ -902,7 +905,7 @@ void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_t
                     }
                     
                     /// check to make sure each site has an outgroup 1 allele called as well
-                    if ( chromosome->second.at(c).sequence_data.at(cds_position_iterator).outgroup_allele == "N" || chromosome->second.at(c).sequence_data.at(cds_position_iterator-1).outgroup_allele == "N" || chromosome->second.at(c).sequence_data.at(cds_position_iterator-2).outgroup_allele == "N" ) {
+                    if ( no_outgroup == false && ( chromosome->second.at(c).sequence_data.at(cds_position_iterator).outgroup_allele == "N" || chromosome->second.at(c).sequence_data.at(cds_position_iterator-1).outgroup_allele == "N" || chromosome->second.at(c).sequence_data.at(cds_position_iterator-2).outgroup_allele == "N" ) ) {
                         continue ;
                     }
                     
@@ -933,18 +936,26 @@ void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_t
                         }
                         
                         //// now compute divergent sites
-                        transition = compliment_sequence(base_codon + outgroup_codon) ;
                         int dn = 0 ;
                         int ds = 0 ;
-                        if ( outgroup_codon[s] != base_codon[s] && ( alternate_codon.size() < 3 || alternate_codon[s] != outgroup_codon[s] ) ) {
-                            dn = transition_counts.non_synonymous[transition][s] ;
-                            ds = transition_counts.synonymous[transition][s] ;
+                        if ( no_outgroup == false ) {
+                            transition = compliment_sequence(base_codon + outgroup_codon) ;
+                            if ( outgroup_codon[s] != base_codon[s] && ( alternate_codon.size() < 3 || alternate_codon[s] != outgroup_codon[s] ) ) {
+                                dn = transition_counts.non_synonymous[transition][s] ;
+                                ds = transition_counts.synonymous[transition][s] ;
+                            }
                         }
                         
                         /// for all variable sites, print the relevant polymorphism/divergent information
                         if ( output_invariant == true || ( ds > 0 || dn > 0 || ps > 0 || pn > 0 ) ) {
                             cout << chromosome->first << "\t" << p - s << "\t" ;
-                            cout << compliment_sequence( outgroup_codon.substr(s, 1).c_str() ) << "\t" << compliment_sequence( base_codon.substr(s, 1).c_str() ) << "\t" ;
+                            if ( no_outgroup == false ) {
+                                cout << compliment_sequence( outgroup_codon.substr(s, 1).c_str() ) << "\t" ;
+                            }
+                            else {
+                                cout << "N" << "\t" ;
+                            }
+                            cout << compliment_sequence( base_codon.substr(s, 1).c_str() ) << "\t" ;
                             if ( pn > 0 || ps > 0 ) {
                                 cout << compliment_sequence( alternate_codon.substr(s, 1).c_str() ) << "\t" ;
                             }
@@ -958,7 +969,7 @@ void compute_mk_info( map< string, vector<cds_entry> > &cds_information, codon_t
                                 cout << (float)chromosome->second.at(c).sequence_data.at( cds_position_iterator - s ).alt_counts/(float)chromosome->second.at(c).sequence_data.at( cds_position_iterator - s ).number_chromosomes << "\t" ;
                             }
                             else {
-                                cout << "NA" << "\t" ;
+                                cout << "0" << "\t" ;
                             }
                             
                             //// now print , delimited list of all transcripts
@@ -1020,13 +1031,15 @@ int main ( int argc, char **argv ) {
     last_time = clock() ;
     
     //// now import outgroup alignment data for the outgroup
-    cerr << "importing outgroup data\n\t\tFILE=" << options.outgroup_file << endl ; 
-    bool type = check_file_type( options.outgroup_file ) ;
-    if ( type == 0 ) {
-        import_outgroup_vcf( options.outgroup_file, cds_information, options.minimum_outgroup_quality ) ;
-    }
-    else {
-        import_outgroup_maf( options.outgroup_file, cds_information, options.minimum_outgroup_quality, options.accept_lower ) ;
+    if ( options.outgroup_file != "null" ) {
+        cerr << "importing outgroup data\n\t\tFILE=" << options.outgroup_file << endl ;
+        bool type = check_file_type( options.outgroup_file ) ;
+        if ( type == 0 ) {
+            import_outgroup_vcf( options.outgroup_file, cds_information, options.minimum_outgroup_quality ) ;
+        }
+        else {
+            import_outgroup_maf( options.outgroup_file, cds_information, options.minimum_outgroup_quality, options.accept_lower ) ;
+        }
     }
     
     /// benchmarking
@@ -1035,7 +1048,9 @@ int main ( int argc, char **argv ) {
     
     /// compute and output polymorphism and divergence information
     cerr << "computing MK information\n" ;
-    compute_mk_info ( cds_information, transition_counts, options.output_invariant ) ;
+    bool no_outgroup = false ;
+    if ( options.outgroup_file == "null" ) no_outgroup = true ;
+    compute_mk_info ( cds_information, transition_counts, options.output_invariant, no_outgroup ) ;
     
     /// benchmarking
     cerr << "mk runtime:\t" << (double) (clock() - last_time) / 1000000 << endl ;
