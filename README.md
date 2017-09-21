@@ -16,7 +16,7 @@ cut –f1-8 outgroup.vcf > out.vcf &
 
 ./vcf2MK –v in.vcf –o out.vcf –c annotation.gff > transcript_data.txt
 
-Little quality filtration is built into the program. Instead, the user is expected to provide vcf2MK with a heavily filtered vcf file for both ingroup and outgroup vcfs.  
+Little quality filtration is built into the program. Instead, the user is expected to provide vcf2MK with a heavily filtered vcf file for both ingroup and outgroup vcfs. Additionally, the program expects to read only 8 columns in a VCF file, so "cut -f1-8" is necessary for correct usage. 
 
 Output: The program output is tab-delimited data for all variable sites within a transcript supplied in the annotation file. The format is 
 
@@ -43,6 +43,8 @@ The following are two example output lines.
 Eample Usage: Example files are provided in the example directory. To test the program, use the command “./vcf2MK –v Dmelanogaster.vcf –o Dsimulans.vcf –c Dmelanogaster.gff > Dmelanogaster.detailed”
 
 Options: "-i" will output the full set of sites with coverage in both ingroup vcf and outgroup alignment regardless of whether there is a polymorphic or divergent site. 
+
+In the latest version, specifying an outgroup is optional. If not outgroup is included in the command line, the program will ignore all divergence computation (ouputting "N" in column 3 and zeros in columns 6,7). Otherwise, the software should perform as expected. 
 
 Scripts: Two scripts are contained with the vcf2MK package. detailed2site_averages.pl will take the output from vcf2MK and aggregate information for all tanscripts that contain a given site, and output the average dn, ds, pn, and ps counts for that site across all transcripts. The package also contains a script, detailed2mk.pl, that will aggregate site counts across each transcript and output totals. By default this script will discard all sites with minor allele frequencies less than 0.1. The output of this script is tab-delimited with the transcript id, dn, ds, pn, ps, dos, and alpha. 
 
